@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init-ngo
+  namespace: solidarytech
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: psql
+          image: postgres:15-alpine
+          env:
+            - name: PGPASSWORD
+              value: "SolidaryTech2024!Secure"
+          command: ["psql"]
+          args:
+            - "-h"
+            - "solidarytech-ngo-db.cz2cecuoa7ef.us-east-1.rds.amazonaws.com"
+            - "-U"
+            - "ngo_admin"
+            - "-d"
+            - "ngo_service"
+            - "-c"
+            - "CREATE TABLE IF NOT EXISTS ngos (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, cause VARCHAR(100) NOT NULL, city VARCHAR(100) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init-donation
+  namespace: solidarytech
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: psql
+          image: postgres:15-alpine
+          env:
+            - name: PGPASSWORD
+              value: "SolidaryTech2024!Secure"
+          command: ["psql"]
+          args:
+            - "-h"
+            - "solidarytech-donation-db.cz2cecuoa7ef.us-east-1.rds.amazonaws.com"
+            - "-U"
+            - "donation_admin"
+            - "-d"
+            - "donation_service"
+            - "-c"
+            - "CREATE TABLE IF NOT EXISTS donations (id SERIAL PRIMARY KEY, ngo_id INT NOT NULL, amount NUMERIC(10,2) NOT NULL, donor_name VARCHAR(100) NOT NULL, status VARCHAR(20) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);"
