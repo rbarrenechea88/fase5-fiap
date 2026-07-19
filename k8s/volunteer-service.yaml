@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: volunteer-service
-          image: ghcr.io/solidarytech/volunteer-service:latest
+          image: 445567109642.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service:latest
           ports:
             - containerPort: 8083
           env:
