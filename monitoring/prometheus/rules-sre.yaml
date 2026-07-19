@@ -1,0 +1,54 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: solidarytech-sre-rules
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: solidarytech.slo
+      rules:
+        # SLI: Taxa de Sucesso (Error Rate) - donation-service
+        - record: donation_service:http_requests:success_rate_5m
+          expr: |
+            sum(rate(http_requests_total{service="donation-service", code=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="donation-service"}[5m]))
+
+        # SLI: Latência P99 - donation-service
+        - record: donation_service:http_request_duration:p99_5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{service="donation-service"}[5m])) by (le)
+            )
+
+        # SLO: 99.9% de sucesso (Error Budget)
+        - record: donation_service:error_budget:remaining
+          expr: |
+            1 - (
+              (1 - donation_service:http_requests:success_rate_5m)
+              / (1 - 0.999)
+            )
+
+        # Alerta: Error Budget queimando rápido
+        - alert: DonationServiceErrorBudgetBurn
+          expr: donation_service:error_budget:remaining < 0.25
+          for: 5m
+          labels:
+            severity: critical
+            service: donation-service
+          annotations:
+            summary: "Error Budget do donation-service abaixo de 25%"
+            description: "O Error Budget restante é {{ $value | humanizePercentage }}. Ação imediata necessária."
+
+        # Alerta: Latência alta
+        - alert: DonationServiceHighLatency
+          expr: donation_service:http_request_duration:p99_5m > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            service: donation-service
+          annotations:
+            summary: "Latência P99 do donation-service acima de 500ms"
+            description: "Latência P99 atual: {{ $value }}s"

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volunteer-service
+  namespace: solidarytech
+  labels:
+    app: volunteer-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: volunteer-service
+  template:
+    metadata:
+      labels:
+        app: volunteer-service
+        tier: backend
+    spec:
+      containers:
+        - name: volunteer-service
+          image: ghcr.io/solidarytech/volunteer-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: AWS_DYNAMODB_TABLE
+              value: "solidarytech-volunteers"
+            - name: AWS_REGION
+              value: "us-east-1"
+          resources:
+            requests:
+              cpu: "80m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: volunteer-service
+  namespace: solidarytech
+  labels:
+    app: volunteer-service
+spec:
+  selector:
+    app: volunteer-service
+  ports:
+    - port: 80
+      targetPort: 8083
+      protocol: TCP
+  type: ClusterIP
