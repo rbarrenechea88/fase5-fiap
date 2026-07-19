@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Garantir a continuidade operacional da plataforma SolidaryTech em caso de falhas no provedor de nuvem, desastres naturais ou incidentes cibernéticos, assegurando que as doações nunca parem.
+Garantir a continuidade operacional da plataforma SolidaryTech em caso de falhas regionais na AWS, assegurando que as doações nunca parem.
 
 ---
 
@@ -24,61 +24,60 @@ Garantir a continuidade operacional da plataforma SolidaryTech em caso de falhas
   - Estratégia: RDS Multi-AZ com replicação síncrona
 - **RTO (Recovery Time Objective)**: 15 minutos
   - Justificativa: Doações devem voltar em até 15 min
-  - Estratégia: Failover automático RDS + ArgoCD self-heal
+  - Estratégia: Terraform para levantar ambiente espelho em us-east-2
 
 ### ngo-service (Alto)
 - **RPO**: 1 hora
-  - Estratégia: Backup RDS com retenção de 7 dias
+  - Estratégia: Backup RDS automático com retenção de 7 dias
 - **RTO**: 30 minutos
-  - Estratégia: Restore do backup + re-deploy via ArgoCD
+  - Estratégia: Terraform apply na região DR
 
 ### volunteer-service (Médio)
 - **RPO**: 4 horas
   - Estratégia: DynamoDB Point-in-Time Recovery (PITR)
 - **RTO**: 1 hora
-  - Estratégia: Restore DynamoDB + re-deploy
+  - Estratégia: Re-deploy via Terraform + ArgoCD na região DR
 
 ---
 
 ## 4. Estratégia de Disaster Recovery
 
-### Implementação: Velero + Cross-Region Backup (Opção A)
+### Implementação: Terraform Ativo-Passivo (Warm Standby)
 
-**Componentes:**
-1. **Velero** no cluster EKS: Backup diário dos manifestos e PVCs
-2. **S3 Cross-Region Replication**: Bucket de backups replicado para us-west-2
-3. **RDS Multi-AZ**: Failover automático para donation-db
-4. **DynamoDB PITR**: Restore para qualquer ponto no tempo (últimas 35 dias)
+**Região Primária**: us-east-1 (N. Virginia)
+**Região DR**: us-east-2 (Ohio)
+
+**Arquitetura:**
+- Infraestrutura completa definida em `terraform/dr.tf`
+- VPC, EKS e networking pré-provisionados em Ohio via Terraform
+- O ambiente DR roda com capacidade reduzida (2 nodes vs 3) para economia
+- Em caso de failover, escala para capacidade total
 
 **Fluxo de Recovery:**
 ```
 1. Incidente detectado (alerta/AIOps) → Runbook acionado
-2. Confirmar impacto (< 2 min)
-3. Se região indisponível:
-   a. Executar terraform apply -var="aws_region=us-west-2" (ambiente espelho)
-   b. Velero restore do último backup no novo cluster
-   c. Atualizar DNS (Route53 failover policy)
-4. Validar serviços + smoke tests
-5. Comunicar stakeholders
+2. Confirmar indisponibilidade da região primária (< 2 min)
+3. Escalar nodes DR: terraform apply -var="dr_desired_size=3"
+4. ArgoCD sincroniza manifestos no cluster DR
+5. Atualizar DNS (Route53 failover policy) para apontar ao cluster DR
+6. Validar serviços + smoke tests
+7. Comunicar stakeholders
 ```
 
-### Terraform Modular para DR (Opção B - Warm Standby)
-
-O Terraform é modularizado para permitir levantar ambiente espelho em outra região com um único comando:
-
+**Comando para ativar DR completo:**
 ```bash
-terraform apply -var="aws_region=us-west-2" -var="environment=DR"
+terraform apply -var="aws_region=us-east-2" -var="environment=DR"
 ```
 
 ---
 
 ## 5. Testes de DR
 
-| Teste              | Frequência  | Responsável  | Último Teste |
-|--------------------|-------------|--------------|--------------|
-| Failover RDS       | Mensal      | SRE Lead     | -            |
-| Velero Restore     | Quinzenal   | DevOps       | -            |
-| Full DR Drill      | Trimestral  | Toda equipe  | -            |
+| Teste              | Frequência  | Responsável  |
+|--------------------|-------------|--------------|
+| Failover RDS       | Mensal      | SRE Lead     |
+| DR Terraform Plan  | Quinzenal   | DevOps       |
+| Full DR Drill      | Trimestral  | Toda equipe  |
 
 ---
 

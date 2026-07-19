@@ -4,6 +4,18 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "aws_access_key" {
+  description = "AWS Access Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_key" {
+  description = "AWS Secret Key"
+  type        = string
+  sensitive   = true
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -29,7 +41,7 @@ variable "db_instance_class" {
 }
 
 variable "dr_region" {
-  description = "DR Region for Warm Standby"
+  description = "DR Region (Ohio)"
   type        = string
-  default     = "us-west-2"
+  default     = "us-east-2"
 }

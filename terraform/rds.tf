@@ -30,7 +30,7 @@ resource "aws_security_group" "rds" {
 resource "aws_db_instance" "ngo_db" {
   identifier     = "solidarytech-ngo-db"
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15.13"
   instance_class = var.db_instance_class
 
   allocated_storage     = 20
@@ -60,7 +60,7 @@ resource "aws_db_instance" "ngo_db" {
 resource "aws_db_instance" "donation_db" {
   identifier     = "solidarytech-donation-db"
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15.13"
   instance_class = var.db_instance_class
 
   allocated_storage     = 20
